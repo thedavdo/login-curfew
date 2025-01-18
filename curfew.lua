@@ -19,7 +19,7 @@ local WarnLabel = "WARN-"
 
 local curfewWarnings = {};
 
-local lastCheck = -1;
+local checkInterval = 5;
 
 local function doCurfewWarn(minutes)
 
@@ -41,23 +41,24 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
 
     local players = GetPlayersInWorld()
 
-    local curTime = os.date("*t", os.time() + (TIMEZONE * 60 * 60))
-
-    if(curTime ~= -1 and (os.time() - lastCheck) < 10) then
+    if(len(players) == 0) then
         return
     end
 
-    lastCheck = os.time()
+    local curTime = os.date("*t", os.time() + (TIMEZONE * 60 * 60))
 
     local minutesUntilCurfewStart = ((startCurfew.hour * 60) + startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
     local minutesUntilCurfewEnd = ((endCurfew.hour * 60) + endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
 
-    local warnSelection = -1;
+    print("Current time: " .. curTime.hour .. ":" .. curTime.min)
+    print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
+    print("Minutes until curfew start: " .. minutesUntilCurfewStart)
+    print("Minutes until curfew end: " .. minutesUntilCurfewEnd)
 
+    local warnSelection = -1;
 
     --Find closest warning message interval
     for _, warningTime in ipairs(warningTimes) do
-
         if (minutesUntilCurfewStart < warningTime) then
             warnSelection = warningTime
         end
@@ -90,8 +91,4 @@ end
 
 
 
-CreateLuaEvent(PerformCurfewCheck, 0)
--- RegisterMapEvent()
--- RegisterPlayerEvent(PlayerEvents.PLAYER_EVENT_ON_LOGIN, PerformCurfewCheck)
--- RegisterPacketEvent(1243, 5, PerformCurfewCheck, 0)
-
+CreateLuaEvent(PerformCurfewCheck, checkInterval * 1000, 0)
