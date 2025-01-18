@@ -41,7 +41,17 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
 
     local players = GetPlayersInWorld()
 
-    if(len(players) == 0) then
+    if not players then
+        return
+    end
+
+    local playerCount = 0
+
+    for k, ply in pairs(players) do
+        playerCount = playerCount + 1
+    end
+
+    if (playerCount == 0) then
         return
     end
 
