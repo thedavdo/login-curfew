@@ -89,6 +89,9 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
 end
 
 
-RegisterPlayerEvent(PlayerEvents.PLAYER_EVENT_ON_LOGIN, PerformCurfewCheck)
-RegisterPacketEvent(1243, 5, PerformCurfewCheck, 0)
+
+CreateLuaEvent(PerformCurfewCheck, 0)
+-- RegisterMapEvent()
+-- RegisterPlayerEvent(PlayerEvents.PLAYER_EVENT_ON_LOGIN, PerformCurfewCheck)
+-- RegisterPacketEvent(1243, 5, PerformCurfewCheck, 0)
 
