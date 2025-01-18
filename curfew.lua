@@ -19,6 +19,8 @@ local WarnLabel = "WARN-"
 
 local curfewWarnings = {};
 
+local lastCheck = -1;
+
 local function doCurfewWarn(minutes)
 
     local lbl = WarnLabel .. minutes
@@ -40,6 +42,12 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
     local players = GetPlayersInWorld()
 
     local curTime = os.date("*t", os.time() + (TIMEZONE * 60 * 60))
+
+    if(curTime ~= -1 and (os.time() - lastCheck) < 10) then
+        return
+    end
+
+    lastCheck = os.time()
 
     local minutesUntilCurfewStart = ((startCurfew.hour * 60) + startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
     local minutesUntilCurfewEnd = ((endCurfew.hour * 60) + endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
@@ -80,5 +88,7 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
     end
 end
 
-worldobject:RegisterEvent(PerformCurfewCheck, (15 * 1000), 0)
+
+RegisterPlayerEvent(PlayerEvents.PLAYER_EVENT_ON_LOGIN, PerformCurfewCheck)
+RegisterPacketEvent(1243, 5, PerformCurfewCheck, 0)
 
