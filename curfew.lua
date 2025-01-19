@@ -13,7 +13,7 @@ local endCurfew = {
 local warningTimes = {60, 30, 15, 10, 5, 1}
 
 -- Timezone offset from UTC, in hours 
-local TIMEZONE = -5;
+local TIMEZONE = 0;
 
 local WarnLabel = "WARN-"
 
@@ -31,8 +31,8 @@ local function doCurfewWarn(minutes)
 
     curfewWarnings[lbl] = true;
 
-    -- Send 5 messages so people can see it in chat.
-    for i = 1, 5 do
+    -- Send 8 messages so people can see it fill up in chat.
+    for i = 1, 8 do
         SendWorldMessage("Curfew is in less than " .. minutes .. " minutes. Please finish up and go to bed.")
     end
 end
@@ -62,6 +62,7 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
 
     print("Current time: " .. curTime.hour .. ":" .. curTime.min)
     print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
+    print("Curfew end time: " .. endCurfew.hour .. ":" .. endCurfew.minute)
     print("Minutes until curfew start: " .. minutesUntilCurfewStart)
     print("Minutes until curfew end: " .. minutesUntilCurfewEnd)
 
@@ -69,7 +70,7 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
 
     --Find closest warning message interval
     for _, warningTime in ipairs(warningTimes) do
-        if (minutesUntilCurfewStart < warningTime) then
+        if (minutesUntilCurfewStart <= warningTime) then
             warnSelection = warningTime
         end
     end
@@ -98,7 +99,5 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
         ply:KickPlayer()
     end
 end
-
-
 
 CreateLuaEvent(PerformCurfewCheck, checkInterval * 1000, 0)
