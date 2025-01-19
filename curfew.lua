@@ -1,12 +1,12 @@
 
 local startCurfew = {
-    hour = 23,
-    minute = 0
+    hour = 10,
+    minute = 15
 };
 
 local endCurfew = {
-    hour = 5,
-    minute = 0
+    hour = 4,
+    minute = 30
 };
 
 --Minutes before curfew to send warnings
@@ -21,6 +21,8 @@ local curfewWarnings = {};
 
 local checkInterval = 5;
 
+local debuging = false;
+
 local function doCurfewWarn(minutes)
 
     local lbl = WarnLabel .. minutes
@@ -31,10 +33,23 @@ local function doCurfewWarn(minutes)
 
     curfewWarnings[lbl] = true;
 
+    print("-----------------------------------------------------")
+    print("Current time: " .. curTime.hour .. ":" .. curTime.min)
+    print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
+    print("Curfew end time: " .. endCurfew.hour .. ":" .. endCurfew.minute)
+    print("Minutes until curfew start: " .. minutesUntilCurfewStart)
+    print("Minutes until curfew end: " .. minutesUntilCurfewEnd)
+    print("-----------------------------------------------------")
+
     -- Send 8 messages so people can see it fill up in chat.
     for i = 1, 8 do
-        SendWorldMessage("Curfew is in less than " .. minutes .. " minutes. Please finish up and go to bed.")
+        local msg = "Curfew is in less than " .. minutes .. " minutes. Please finish up and go to bed."
+
+        
+        print(msg)
+        SendWorldMessage(msg)
     end
+    print("-----------------------------------------------------")
 end
 
 local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
@@ -60,11 +75,9 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
     local minutesUntilCurfewStart = ((startCurfew.hour * 60) + startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
     local minutesUntilCurfewEnd = ((endCurfew.hour * 60) + endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
 
-    print("Current time: " .. curTime.hour .. ":" .. curTime.min)
-    print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
-    print("Curfew end time: " .. endCurfew.hour .. ":" .. endCurfew.minute)
-    print("Minutes until curfew start: " .. minutesUntilCurfewStart)
-    print("Minutes until curfew end: " .. minutesUntilCurfewEnd)
+    -- if debuging then 
+
+    -- end
 
     local warnSelection = -1;
 
@@ -102,7 +115,7 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
         if(banTime < 0) then
             banTime = (24 * 60) + banTime;
         end
-
+        print("Banning " .. ply:GetAccountName() .. " because they were playing past curfew. See them back in " .. banTime .. " minutes (until end of curfew).")
         Ban(0, ply:GetAccountName(), banTime * 60, "You are past curfew! See you in the morning!", "DAVDO - Lord of the Lua Domain & Curfew System")
     end
 end
