@@ -96,7 +96,7 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
     end
 
     for k, ply in pairs(players) do
-        ply:KickPlayer()
+        Ban(0, ply:GetAccountName(), minutesUntilCurfewEnd * 60, "You are past curfew! See you in the morning!", "DAVDO - Lord of the Lua Domain & Curfew System")
     end
 end
 
