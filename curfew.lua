@@ -1,6 +1,36 @@
 
 --Config for users to change to their liking.
 local CurfewConfig = {
+
+    -- Schedule for specific days, if not set, the default curfew times will be used.
+    -- Sunday = 0, Monday = 1, Tuesday = 2, Wednesday = 3, Thursday = 4, Friday = 5, Saturday = 6
+    schedule = {
+
+        -- Friday
+        [5] = {
+            startCurfew = {
+                hour = 00,
+                minute = 45
+            },
+            endCurfew = {
+                hour = 5,
+                minute = 30
+            }
+        },
+
+        -- Saturday
+        [6] = {
+            startCurfew = {
+                hour = 23,
+                minute = 30
+            },
+            endCurfew = {
+                hour = 5,
+                minute = 30
+            }
+        }
+    },
+
     -- Curfew start time
     startCurfew = {
         hour = 22,
@@ -16,7 +46,7 @@ local CurfewConfig = {
     -- Minutes before curfew to send warnings
     warningTimes = {60, 30, 15, 10, 5, 1},
 
-    -- Timezone offset from UTC, in hours 
+    -- Timezone offset from whatever the host machine is set to.
     TIMEZONE = 0,
 
     -- Interval in seconds to check for curfew checking
@@ -33,14 +63,13 @@ local curfewWarnings = {};
 --String make look up take work better with numbers.
 local WARN_LABEL = "WARN-"
 
-local function DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCurfewEnd)
+local function DoCurfewWarnings(curTime, startCurfew, endCurfew, minutesUntilCurfewStart, minutesUntilCurfewEnd)
 
     -- Curfew is behind us.
     if (minutesUntilCurfewStart < 0) then
         return
     end
 
-    -- local closestWarningTime = -1;
     local warnSelection = -1;
 
     -- Find closest warning message interval
@@ -50,7 +79,6 @@ local function DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCu
             -- If we have not found a warning message yet, 
             -- or if this warning time is closer to the current time than the most recent one, set it as the most recent.
             if (warnSelection == -1 or warningTime < warnSelection) then
-                -- closestWarningTime = warningTime
                 warnSelection = warningTime
             end
         end
@@ -76,8 +104,8 @@ local function DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCu
 
     print("-----------------------------------------------------")
     print("Current time: " .. curTime.hour .. ":" .. curTime.min)
-    print("Curfew start time: " .. CurfewConfig.startCurfew.hour .. ":" .. CurfewConfig.startCurfew.minute)
-    print("Curfew end time: " .. CurfewConfig.endCurfew.hour .. ":" .. CurfewConfig.endCurfew.minute)
+    print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
+    print("Curfew end time: " .. endCurfew.hour .. ":" .. endCurfew.minute)
     print("Minutes until curfew start: " .. minutesUntilCurfewStart)
     print("Minutes until curfew end: " .. minutesUntilCurfewEnd)
     print("-----------------------------------------------------")
@@ -137,12 +165,23 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
         return
     end
 
-    local curTime = os.date("*t", os.time() + (CurfewConfig.TIMEZONE * 60 * 60))
+    local timeAdjusted = os.time() + (CurfewConfig.TIMEZONE * 60 * 60);
 
-    local minutesUntilCurfewStart = ((CurfewConfig.startCurfew.hour * 60) + CurfewConfig.startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
-    local minutesUntilCurfewEnd = ((CurfewConfig.endCurfew.hour * 60) + CurfewConfig.endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
+    local curTime = os.date("*t", timeAdjusted)
+    local dayCode = tonumber(os.date("%w", timeAdjusted))
 
-    DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCurfewEnd)
+    local startCurfew = CurfewConfig.startCurfew
+    local endCurfew = CurfewConfig.endCurfew
+
+    if(CurfewConfig.schedule[dayCode]) then
+        startCurfew = CurfewConfig.schedule[dayCode].startCurfew
+        endCurfew = CurfewConfig.schedule[dayCode].endCurfew
+    end
+
+    local minutesUntilCurfewStart = ((startCurfew.hour * 60) + startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
+    local minutesUntilCurfewEnd = ((endCurfew.hour * 60) + endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
+
+    DoCurfewWarnings(curTime, startCurfew, endCurfew, minutesUntilCurfewStart, minutesUntilCurfewEnd)
     DoCurfewBans(players, minutesUntilCurfewStart, minutesUntilCurfewEnd)
 end
 
