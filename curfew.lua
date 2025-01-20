@@ -40,7 +40,7 @@ local function DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCu
         return
     end
 
-    local closestWarningTime = -1;
+    -- local closestWarningTime = -1;
     local warnSelection = -1;
 
     -- Find closest warning message interval
@@ -49,11 +49,10 @@ local function DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCu
 
             -- If we have not found a warning message yet, 
             -- or if this warning time is closer to the current time than the most recent one, set it as the most recent.
-            if (closestWarningTime == -1 or warningTime < closestWarningTime) then
-                closestWarningTime = warningTime
+            if (warnSelection == -1 or warningTime < warnSelection) then
+                -- closestWarningTime = warningTime
+                warnSelection = warningTime
             end
-
-            warnSelection = warningTime
         end
     end
 
