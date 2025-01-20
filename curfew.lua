@@ -1,31 +1,73 @@
 
-local startCurfew = {
-    hour = 10,
-    minute = 15
-};
+--Config for users to change to their liking.
+local CurfewConfig = {
+    -- Curfew start time
+    startCurfew = {
+        hour = 22,
+        minute = 15
+    },
 
-local endCurfew = {
-    hour = 4,
-    minute = 30
-};
+    -- Curfew end time
+    endCurfew = {
+        hour = 4,
+        minute = 30
+    },
 
---Minutes before curfew to send warnings
-local warningTimes = {60, 30, 15, 10, 5, 1}
+    -- Minutes before curfew to send warnings
+    warningTimes = {60, 30, 15, 10, 5, 1},
 
--- Timezone offset from UTC, in hours 
-local TIMEZONE = 0;
+    -- Timezone offset from UTC, in hours 
+    TIMEZONE = 0,
 
-local WarnLabel = "WARN-"
+    -- Interval in seconds to check for curfew checking
+    checkInterval = 5,
+}
 
+-----------------------------------------------------
+-- DO NOT EDIT BELOW THIS LINE ----------------------
+-----------------------------------------------------
+
+--Look up table to track warnings
 local curfewWarnings = {};
 
-local checkInterval = 5;
+--String make look up take work better with numbers.
+local WARN_LABEL = "WARN-"
 
-local debuging = false;
+local function DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCurfewEnd)
 
-local function doCurfewWarn(minutes)
+    -- Curfew is behind us.
+    if (minutesUntilCurfewStart < 0) then
+        return
+    end
 
-    local lbl = WarnLabel .. minutes
+    local closestWarningTime = -1;
+    local warnSelection = -1;
+
+    -- Find closest warning message interval
+    for _, warningTime in ipairs(CurfewConfig.warningTimes) do
+        if (minutesUntilCurfewStart <= warningTime) then
+
+            -- If we have not found a warning message yet, 
+            -- or if this warning time is closer to the current time than the most recent one, set it as the most recent.
+            if (closestWarningTime == -1 or warningTime < closestWarningTime) then
+                closestWarningTime = warningTime
+            end
+
+            warnSelection = warningTime
+        end
+    end
+
+    -- If we don't have a warning message to send, stop here.
+    if (warnSelection == -1) then
+        return
+    end
+
+    -- Reset warnings if we are past curfew
+    if ((minutesUntilCurfewEnd < minutesUntilCurfewStart) and (warnSelection == -1)) then
+        curfewWarnings = {}
+    end
+
+    local lbl = WARN_LABEL .. warnSelection
 
     if curfewWarnings[lbl] then
         return
@@ -35,21 +77,47 @@ local function doCurfewWarn(minutes)
 
     print("-----------------------------------------------------")
     print("Current time: " .. curTime.hour .. ":" .. curTime.min)
-    print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
-    print("Curfew end time: " .. endCurfew.hour .. ":" .. endCurfew.minute)
+    print("Curfew start time: " .. CurfewConfig.startCurfew.hour .. ":" .. CurfewConfig.startCurfew.minute)
+    print("Curfew end time: " .. CurfewConfig.endCurfew.hour .. ":" .. CurfewConfig.endCurfew.minute)
     print("Minutes until curfew start: " .. minutesUntilCurfewStart)
     print("Minutes until curfew end: " .. minutesUntilCurfewEnd)
     print("-----------------------------------------------------")
 
+    local msg = "Curfew is in less than " .. warnSelection .. " minutes. Please finish up and go to bed."
+
+    print(msg)
+
     -- Send 8 messages so people can see it fill up in chat.
     for i = 1, 8 do
-        local msg = "Curfew is in less than " .. minutes .. " minutes. Please finish up and go to bed."
-
-        
-        print(msg)
         SendWorldMessage(msg)
     end
     print("-----------------------------------------------------")
+end
+
+local function DoCurfewBans(players, minutesUntilCurfewStart, minutesUntilCurfewEnd)
+
+    -- We are past the end of curfew, allow people to play.
+    if ((minutesUntilCurfewEnd <= 0) and (minutesUntilCurfewStart > 0)) then
+        return
+    end
+
+    -- We are before curfew, allow people to play.
+    if (minutesUntilCurfewEnd > minutesUntilCurfewStart) then
+        return
+    end
+
+    for k, ply in pairs(players) do
+
+        local banTime = minutesUntilCurfewEnd;
+
+        if (banTime < 0) then
+            banTime = (24 * 60) + banTime;
+        end
+        print("Banning " .. ply:GetAccountName() .. " because they were playing past curfew. See them back in " ..
+                  banTime .. " minutes (until end of curfew).")
+        Ban(0, ply:GetAccountName(), banTime * 60, "You are past curfew! See you in the morning!",
+            "DAVDO - Lord of the Lua Domain & Curfew System")
+    end
 end
 
 local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
@@ -70,54 +138,13 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
         return
     end
 
-    local curTime = os.date("*t", os.time() + (TIMEZONE * 60 * 60))
+    local curTime = os.date("*t", os.time() + (CurfewConfig.TIMEZONE * 60 * 60))
 
-    local minutesUntilCurfewStart = ((startCurfew.hour * 60) + startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
-    local minutesUntilCurfewEnd = ((endCurfew.hour * 60) + endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
+    local minutesUntilCurfewStart = ((CurfewConfig.startCurfew.hour * 60) + CurfewConfig.startCurfew.minute) - ((curTime.hour * 60) + curTime.min)
+    local minutesUntilCurfewEnd = ((CurfewConfig.endCurfew.hour * 60) + CurfewConfig.endCurfew.minute) - ((curTime.hour * 60) + curTime.min)
 
-    -- if debuging then 
-
-    -- end
-
-    local warnSelection = -1;
-
-    --Find closest warning message interval
-    for _, warningTime in ipairs(warningTimes) do
-        if (minutesUntilCurfewStart <= warningTime) then
-            warnSelection = warningTime
-        end
-    end
-
-    -- If we have a warning message to send, send it.
-    if (warnSelection ~= -1 and not (minutesUntilCurfewStart < 0)) then
-        doCurfewWarn(warnSelection)
-    end
-
-    -- Reset warnings if we are past curfew
-    if ((minutesUntilCurfewEnd < minutesUntilCurfewStart) and (warnSelection == -1)) then
-        curfewWarnings = {}
-    end
-
-    -- We are past the end of curfew, allow people to play.
-    if ((minutesUntilCurfewEnd <= 0) and (minutesUntilCurfewStart > 0)) then
-        return
-    end
-
-    -- We are before curfew, allow people to play.
-    if (minutesUntilCurfewEnd > minutesUntilCurfewStart) then
-        return
-    end
-
-    for k, ply in pairs(players) do
-
-        local banTime = minutesUntilCurfewEnd;
-
-        if(banTime < 0) then
-            banTime = (24 * 60) + banTime;
-        end
-        print("Banning " .. ply:GetAccountName() .. " because they were playing past curfew. See them back in " .. banTime .. " minutes (until end of curfew).")
-        Ban(0, ply:GetAccountName(), banTime * 60, "You are past curfew! See you in the morning!", "DAVDO - Lord of the Lua Domain & Curfew System")
-    end
+    DoCurfewWarnings(curTime, minutesUntilCurfewStart, minutesUntilCurfewEnd)
+    DoCurfewBans(players, minutesUntilCurfewStart, minutesUntilCurfewEnd)
 end
 
-CreateLuaEvent(PerformCurfewCheck, checkInterval * 1000, 0)
+CreateLuaEvent(PerformCurfewCheck, CurfewConfig.checkInterval * 1000, 0)
