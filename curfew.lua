@@ -1,5 +1,5 @@
 
---Config for users to change to their liking.
+-- Config for users to change to their liking.
 local CurfewConfig = {
 
     -- Schedule for specific days, if not set, the default curfew times will be used.
@@ -50,18 +50,20 @@ local CurfewConfig = {
     TIMEZONE = 0,
 
     -- Interval in seconds to check for curfew checking
-    checkInterval = 5,
+    checkInterval = 5
 }
 
 -----------------------------------------------------
 -- DO NOT EDIT BELOW THIS LINE ----------------------
 -----------------------------------------------------
 
---Look up table to track warnings
+-- Look up table to track warnings
 local curfewWarnings = {};
 
---String make look up take work better with numbers.
+-- String make look up take work better with numbers.
 local WARN_LABEL = "WARN-"
+
+local currentCurfewCode = nil
 
 local function DoCurfewWarnings(curTime, startCurfew, endCurfew, minutesUntilCurfewStart, minutesUntilCurfewEnd)
 
@@ -103,6 +105,7 @@ local function DoCurfewWarnings(curTime, startCurfew, endCurfew, minutesUntilCur
     curfewWarnings[lbl] = true;
 
     print("-----------------------------------------------------")
+    print("Curfew Selection: " .. (currentCurfewCode or "Default"))
     print("Current time: " .. curTime.hour .. ":" .. curTime.min)
     print("Curfew start time: " .. startCurfew.hour .. ":" .. startCurfew.minute)
     print("Curfew end time: " .. endCurfew.hour .. ":" .. endCurfew.minute)
@@ -125,6 +128,7 @@ local function DoCurfewBans(players, minutesUntilCurfewStart, minutesUntilCurfew
 
     -- We are past the end of curfew, allow people to play.
     if ((minutesUntilCurfewEnd <= 0) and (minutesUntilCurfewStart > 0)) then
+        currentCurfewCode = nil
         return
     end
 
@@ -173,7 +177,14 @@ local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
     local startCurfew = CurfewConfig.startCurfew
     local endCurfew = CurfewConfig.endCurfew
 
-    if(CurfewConfig.schedule[dayCode]) then
+    if (currentCurfewCode) then
+        dayCode = currentCurfewCode
+    end
+
+    if (CurfewConfig.schedule[dayCode]) then
+
+        currentCurfewCode = dayCode
+
         startCurfew = CurfewConfig.schedule[dayCode].startCurfew
         endCurfew = CurfewConfig.schedule[dayCode].endCurfew
     end
