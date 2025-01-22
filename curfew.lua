@@ -61,6 +61,12 @@ local CurfewConfig = {
 -- DO NOT EDIT BELOW THIS LINE ----------------------
 -----------------------------------------------------
 
+local debug = false
+
+if(debug) then
+    require("debugging")
+end
+
 -- Look up table to track warnings
 local curfewWarnings = {};
 
@@ -72,9 +78,13 @@ local selectedCurfewConfig = CurfewConfig.defaultCurfew
 
 local curfewTimes = nil
 
+--Only for debugging purposes, to simulate time passing.
+local timeOffest = 0
+local timeScale = 10
+
 local function getCurrentTimeSeconds()
 
-    return os.time() + (CurfewConfig.TIMEZONE * 60 * 60) -- + (timeAdjust * 60 * 15);
+    return os.time() + (CurfewConfig.TIMEZONE * 60 * 60)  + (timeOffest * 60 * timeScale);
 end
 
 local function getCurrentPlayers() 
@@ -206,6 +216,7 @@ end
 
 local function DoCurfewBans(players)
 
+    --Curfew times aren't setup yet
     if(curfewTimes == nil) then
         return
     end
@@ -226,8 +237,9 @@ local function DoCurfewBans(players)
 
     local banTime = math.floor(minutesUntilCurfewEnd + 0.5);
 
-    for k, ply in pairs(players) do
+    print("Current time: " .. os.date("%H:%M", timeSeconds))
 
+    for k, ply in pairs(players) do
         print("Banning " .. ply:GetAccountName() .. " because they were playing past curfew. See them back in " .. banTime .. " minutes (until end of curfew).")
         Ban(0, ply:GetAccountName(), banTime * 60, "You are past curfew! See you in the morning!", "DAVDO - Lord of the Lua Domain & Curfew System")
     end
@@ -238,12 +250,14 @@ local function DoCurfewCheck()
 
     local timeSeconds = getCurrentTimeSeconds()
 
+    -- If we have a curfew time set and we are not yet past the end of curfew, don't reset the curfew times.
     if(curfewTimes and (timeSeconds < curfewTimes.finish)) then 
         return
     end
 
     local dayCode = tonumber(os.date("%w", timeSeconds))
 
+    -- Check for a specific curfew for this day in the schedule, else use default
     if (CurfewConfig.scheduledCurfew[dayCode]) then
         curfewDayCode = dayCode
         selectedCurfewConfig = CurfewConfig.scheduledCurfew[dayCode]
@@ -252,13 +266,19 @@ local function DoCurfewCheck()
         selectedCurfewConfig = CurfewConfig.defaultCurfew
     end
 
+    if(curfewTimes) then 
+        print("Curfew has ended. Resetting curfew times.")
+    end
+
     curfewWarnings = {}
     curfewTimes = getCurfewTimes()
 
     print("Curfew setup for " .. (curfewDayCode or "Default") .. " with start time: " .. selectedCurfewConfig.start.hour .. ":" .. selectedCurfewConfig.start.minute .. " and end time: " .. selectedCurfewConfig.finish.hour .. ":" .. selectedCurfewConfig.finish.minute)
 end
 
-local function PerformCurfewCheck(eventid, delay, repeats, worldobject)
+local function PerformCurfewCheck(eventid, delay, repeats, worldobject, debugTimeOffset)
+
+    timeOffest = debugTimeOffset or 0
 
     local players = getCurrentPlayers()
 
