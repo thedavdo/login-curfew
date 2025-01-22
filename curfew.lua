@@ -70,9 +70,9 @@ local WARN_LABEL = "WARN-"
 local curfewDayCode = nil
 local selectedCurfewConfig = CurfewConfig.defaultCurfew
 
-local curfewTimeRanges = nil
+local curfewTimes = nil
 
-local function getCurrentTime()
+local function getCurrentTimeSeconds()
 
     return os.time() + (CurfewConfig.TIMEZONE * 60 * 60) -- + (timeAdjust * 60 * 15);
 end
@@ -98,9 +98,9 @@ local function getCurrentPlayers()
     return players
 end
 
-local function getCurfewHours()
+local function getCurfewTimes()
 
-    local currentTime = getCurrentTime();
+    local currentTime = getCurrentTimeSeconds();
 
     local adjustedDateTime = os.date("*t", currentTime)
 
@@ -121,34 +121,34 @@ local function getCurfewHours()
     }
 end
 
-local function getMinutesUntilCurfewHours()
+local function getMinutesUntilCurfewTimes()
 
-    if (not curfewTimeRanges) then
+    if (not curfewTimes) then
         return
     end
 
-    local time = getCurrentTime();
+    local time = getCurrentTimeSeconds();
 
     return {
-        start = ((curfewTimeRanges.start - time) / 60),
-        finish = ((curfewTimeRanges.finish - time) / 60)
+        start = ((curfewTimes.start - time) / 60),
+        finish = ((curfewTimes.finish - time) / 60)
     }
 end
 
 local function DoCurfewWarnings()
 
-    local timeSeconds = getCurrentTime()
+    local timeSeconds = getCurrentTimeSeconds()
 
-    if(curfewTimeRanges == nil) then
+    if(curfewTimes == nil) then
         return
     end
 
     -- Curfew is behind us.
-    if ((curfewTimeRanges.start - timeSeconds) < 0) then
+    if ((curfewTimes.start - timeSeconds) < 0) then
         return
     end
 
-    local minutes = getMinutesUntilCurfewHours()
+    local minutes = getMinutesUntilCurfewTimes()
 
     local warnSelection = -1;
 
@@ -206,23 +206,23 @@ end
 
 local function DoCurfewBans(players)
 
-    if(curfewTimeRanges == nil) then
+    if(curfewTimes == nil) then
         return
     end
 
-    local timeSeconds = getCurrentTime()
+    local timeSeconds = getCurrentTimeSeconds()
 
    -- We are past the end of curfew, allow people to play.
-    if ((curfewTimeRanges.finish - timeSeconds) < 0) then
+    if ((curfewTimes.finish - timeSeconds) < 0) then
         return
     end
 
     -- We are before curfew, allow people to play.
-    if ((curfewTimeRanges.start - timeSeconds) > 0) then
+    if ((curfewTimes.start - timeSeconds) > 0) then
         return
     end
 
-    local minutesUntilCurfewEnd = getMinutesUntilCurfewHours().finish
+    local minutesUntilCurfewEnd = getMinutesUntilCurfewTimes().finish
 
     local banTime = math.floor(minutesUntilCurfewEnd + 0.5);
 
@@ -236,9 +236,9 @@ end
 local function DoCurfewCheck()
 
 
-    local timeSeconds = getCurrentTime()
+    local timeSeconds = getCurrentTimeSeconds()
 
-    if(curfewTimeRanges and (timeSeconds < curfewTimeRanges.finish)) then 
+    if(curfewTimes and (timeSeconds < curfewTimes.finish)) then 
         return
     end
 
@@ -253,7 +253,7 @@ local function DoCurfewCheck()
     end
 
     curfewWarnings = {}
-    curfewTimeRanges = getCurfewHours()
+    curfewTimes = getCurfewTimes()
 
     print("Curfew setup for " .. (curfewDayCode or "Default") .. " with start time: " .. selectedCurfewConfig.start.hour .. ":" .. selectedCurfewConfig.start.minute .. " and end time: " .. selectedCurfewConfig.finish.hour .. ":" .. selectedCurfewConfig.finish.minute)
 end
