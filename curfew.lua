@@ -5,7 +5,7 @@ local CurfewConfig = {
     -- Sunday = 0, Monday = 1, Tuesday = 2, Wednesday = 3, Thursday = 4, Friday = 5, Saturday = 6
     scheduledCurfew = {
 
-        -- Friday
+        -- Tuesday
         [2] = {
             start = {
                 hour = 23,
@@ -17,8 +17,8 @@ local CurfewConfig = {
             }
         },
 
-        -- Saturday
-        [6] = {
+        -- Thursday
+        [4] = {
             start = {
                 hour = 23,
                 minute = 30
@@ -53,8 +53,6 @@ local CurfewConfig = {
     checkInterval = 5
 }
 
-
-
 -----------------------------------------------------
 
 -----------------------------------------------------
@@ -63,7 +61,7 @@ local CurfewConfig = {
 
 local debug = false
 
-if(debug) then
+if (debug) then
     require("debugging")
 end
 
@@ -78,16 +76,16 @@ local selectedCurfewConfig = CurfewConfig.defaultCurfew
 
 local curfewTimes = nil
 
---Only for debugging purposes, to simulate time passing.
+-- Only for debugging purposes, to simulate time passing.
 local timeOffest = 0
 local timeScale = 10
 
 local function getCurrentTimeSeconds()
 
-    return os.time() + (CurfewConfig.TIMEZONE * 60 * 60)  + (timeOffest * 60 * timeScale);
+    return os.time() + (CurfewConfig.TIMEZONE * 60 * 60) + (timeOffest * 60 * timeScale);
 end
 
-local function getCurrentPlayers() 
+local function getCurrentPlayers()
 
     local players = GetPlayersInWorld()
 
@@ -108,40 +106,31 @@ local function getCurrentPlayers()
     return players
 end
 
-local function getCurfewTimes()
+local function getCurfewTimes(inConfig, inTimeSeconds)
 
-    local currentTime = getCurrentTimeSeconds();
+    local curfewConfig = inConfig or selectedCurfewConfig
+    local currentTimeSeconds = inTimeSeconds or getCurrentTimeSeconds();
 
-    local adjustedDateTime = os.date("*t", currentTime)
+    local currentDateTime = os.date("*t", currentTimeSeconds)
 
-    local startMinutes = ((selectedCurfewConfig.start.hour * 60) + selectedCurfewConfig.start.minute) - ((adjustedDateTime.hour * 60) + adjustedDateTime.min)
-    local finishMinutes = ((selectedCurfewConfig.finish.hour * 60) + selectedCurfewConfig.finish.minute) - ((adjustedDateTime.hour * 60) + adjustedDateTime.min)
+    local dayStartSeconds = os.time({
+        year = currentDateTime.year,
+        month = currentDateTime.month,
+        day = currentDateTime.day,
+        hour = 0,
+        sec = 0
+    })
 
-    if (startMinutes <= 0) then
-        return
-    end
+    local curfewStartSeconds = dayStartSeconds + (curfewConfig.start.hour * 60 * 60) + (curfewConfig.start.minute * 60)
+    local curfewFinishSeconds = dayStartSeconds + (curfewConfig.finish.hour * 60 * 60) + (curfewConfig.finish.minute * 60)
 
-    if (finishMinutes < startMinutes) then
-        finishMinutes = (24 * 60) + finishMinutes
+    if (curfewConfig.start.hour > curfewConfig.finish.hour) then
+        curfewFinishSeconds = curfewFinishSeconds + (24 * 60 * 60)
     end
 
     return {
-        start = currentTime + (startMinutes * 60),
-        finish = currentTime + (finishMinutes * 60)
-    }
-end
-
-local function getMinutesUntilCurfewTimes()
-
-    if (not curfewTimes) then
-        return
-    end
-
-    local time = getCurrentTimeSeconds();
-
-    return {
-        start = ((curfewTimes.start - time) / 60),
-        finish = ((curfewTimes.finish - time) / 60)
+        start = curfewStartSeconds,
+        finish = curfewFinishSeconds
     }
 end
 
@@ -149,23 +138,24 @@ local function DoCurfewWarnings()
 
     local timeSeconds = getCurrentTimeSeconds()
 
-    if(curfewTimes == nil) then
+    if (curfewTimes == nil) then
         return
     end
+
+    local secondsUntilCurfewStart = curfewTimes.start - timeSeconds;
+    local secondsUntilCurfewFinish = curfewTimes.finish - timeSeconds;
 
     -- Curfew is behind us.
-    if ((curfewTimes.start - timeSeconds) < 0) then
+    if (secondsUntilCurfewStart < 0) then
         return
     end
-
-    local minutes = getMinutesUntilCurfewTimes()
 
     local warnSelection = -1;
 
     -- Find closest warning message interval
     for _, warningTime in ipairs(CurfewConfig.warningTimes) do
 
-        if (minutes.start > warningTime) then
+        if (secondsUntilCurfewStart > (warningTime * 60)) then
             break
         end
 
@@ -199,8 +189,8 @@ local function DoCurfewWarnings()
     print("Current time: " .. adjustedDateTime.hour .. ":" .. adjustedDateTime.min)
     print("Curfew start time: " .. selectedCurfewConfig.start.hour .. ":" .. selectedCurfewConfig.start.minute)
     print("Curfew end time: " .. selectedCurfewConfig.finish.hour .. ":" .. selectedCurfewConfig.finish.minute)
-    print("Minutes until curfew start: " .. minutes.start)
-    print("Minutes until curfew end: " .. minutes.finish)
+    print("Minutes until curfew start: " .. math.floor((secondsUntilCurfewStart / 60) + 0.5))
+    print("Minutes until curfew end: " .. math.floor((secondsUntilCurfewFinish / 60) + 0.5))
     print("-----------------------------------------------------")
 
     local msg = "Curfew is in less than " .. warnSelection .. " minutes. Please finish up and go to bed."
@@ -216,24 +206,24 @@ end
 
 local function DoCurfewBans(players)
 
-    --Curfew times aren't setup yet
-    if(curfewTimes == nil) then
+    -- Curfew times aren't setup yet
+    if (curfewTimes == nil) then
         return
     end
 
     local timeSeconds = getCurrentTimeSeconds()
 
-   -- We are past the end of curfew, allow people to play.
-    if ((curfewTimes.finish - timeSeconds) < 0) then
-        return
-    end
-
     -- We are before curfew, allow people to play.
-    if ((curfewTimes.start - timeSeconds) > 0) then
+    if (curfewTimes.start > timeSeconds) then
         return
     end
 
-    local minutesUntilCurfewEnd = getMinutesUntilCurfewTimes().finish
+    -- We are past the end of curfew, allow people to play.
+    if (curfewTimes.finish < timeSeconds) then
+        return
+    end
+
+    local minutesUntilCurfewEnd = (curfewTimes.finish - timeSeconds) / 60
 
     local banTime = math.floor(minutesUntilCurfewEnd + 0.5);
 
@@ -247,31 +237,65 @@ end
 
 local function DoCurfewCheck()
 
-
     local timeSeconds = getCurrentTimeSeconds()
 
     -- If we have a curfew time set and we are not yet past the end of curfew, don't reset the curfew times.
-    if(curfewTimes and (timeSeconds < curfewTimes.finish)) then 
+    if (curfewTimes and (timeSeconds < curfewTimes.finish)) then
         return
     end
 
     local dayCode = tonumber(os.date("%w", timeSeconds))
 
-    -- Check for a specific curfew for this day in the schedule, else use default
-    if (CurfewConfig.scheduledCurfew[dayCode]) then
-        curfewDayCode = dayCode
-        selectedCurfewConfig = CurfewConfig.scheduledCurfew[dayCode]
-    else
-        curfewDayCode = nil
-        selectedCurfewConfig = CurfewConfig.defaultCurfew
+    local newDayCode = nil
+    local newCurfew = nil
+
+    --First time setup, no curfew times set yet. 
+    if (not curfewTimes) then
+
+        print("Curfew times not set. Setting up curfew for the first time.")
+
+        local prevDayTimeSeconds = timeSeconds - (24 * 60 * 60)
+        local prevDayCode = tonumber(os.date("%w", prevDayTimeSeconds))
+
+        local scheduledConfig = CurfewConfig.scheduledCurfew[prevDayCode];
+        local prevDayConfig = scheduledConfig or CurfewConfig.defaultCurfew
+
+        print("Checking schedule for previous day: " .. (scheduledConfig and "Scheduled" or "Default"))    
+        local prevDayTimes = getCurfewTimes(prevDayConfig, prevDayTimeSeconds)
+
+        if (prevDayTimes.finish > timeSeconds) then
+
+            if (scheduledConfig) then
+                newDayCode = prevDayCode
+            end
+
+            newCurfew = prevDayConfig
+            curfewTimes = prevDayTimes
+            print("Curfew times from previous day are still active. Using those.")
+        end
     end
 
-    if(curfewTimes) then 
-        print("Curfew has ended. Resetting curfew times.")
+    if (not newCurfew or (curfewTimes and timeSeconds > curfewTimes.finish)) then
+
+        print("Selecting curfew for " .. (dayCode or "Default") .. " day.")
+
+        if (CurfewConfig.scheduledCurfew[dayCode]) then
+            -- Check for a specific curfew for this day in the schedule, else use default
+            newDayCode = dayCode
+            newCurfew = CurfewConfig.scheduledCurfew[dayCode]
+
+        else
+            -- If we don't have a specific curfew for this day, use the default.
+            newDayCode = nil
+            newCurfew = CurfewConfig.defaultCurfew
+        end
+
+        curfewTimes = getCurfewTimes()
     end
 
     curfewWarnings = {}
-    curfewTimes = getCurfewTimes()
+    curfewDayCode = newDayCode
+    selectedCurfewConfig = newCurfew
 
     print("Curfew setup for " .. (curfewDayCode or "Default") .. " with start time: " .. selectedCurfewConfig.start.hour .. ":" .. selectedCurfewConfig.start.minute .. " and end time: " .. selectedCurfewConfig.finish.hour .. ":" .. selectedCurfewConfig.finish.minute)
 end
